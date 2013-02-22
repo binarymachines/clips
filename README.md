@@ -7,7 +7,9 @@ clips stands for Command LIne Python Scripts: assorted tools to make life easier
 <b>scpget</b> and <b>scpput</b> are wrappers around (you guessed it) scp. They follow scp's semantics as closely as possible, with the
 additional benefit being that they're smart about aliases. So whereas with scp you would say
 
-scp dtaylor@<host.domain.com>:<path/to/file> [localfile]
+```bash
+scp me@<host.domain.com>:<path/to/file> [localfile]
+```
 
 you would issue
 
