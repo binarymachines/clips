@@ -36,17 +36,17 @@ mktunnel basically wraps ssh *and* lets me use my aliases.
 
 
 So say your server is saturn.sol.pvt and your bastion host is gateway-server-123.sol.com. You've set up a web stack on saturn
-that you want to hit with a browser from your local machine. You also have an alias in .bashrc like
+that you want to hit with a browser from your local machine. You also have a couple of aliases in .bashrc like
 
 ```bash
 alias gate='ssh gateway-server-123.sol.com'
 alias s='saturn.sol.pvt'
 ```
 
-issue
+so just issue
 
 ```bash
-mktunnel -u myloginname 9999 saturn:80 gate
+mktunnel 9999 saturn:80 gate
 ```
 
 Now your tunnel is up and ready to go; from your browser you can issue the URL
