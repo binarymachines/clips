@@ -1,0 +1,118 @@
+#!/usr/local/bin/python
+
+#-----------------------------------------------------
+# scpget: command line wrapper utility for scp
+# One of a matched set: scpget and scpput. 
+# They work just like you'd expect scp to work,
+# with the added advantage that they know about 
+# aliases.
+#
+# Call it the way you'd use scp, with a couple of conveniences: 
+# you can specify username@alias for your remote host, and you can
+# omit username altogether if your current login is the one you
+# want to use on the send target. So if you're already logged in
+# as foouser and you have an ssh account of the same name on foohost,
+# you can say
+#
+#  scpget foohost:path/to/my/file
+#
+# and scpget will copy the file down (with the same name) to the current dir.
+# Otherwise you can use the @ notation 
+#
+# scpget me@foohost:path/to/my/file
+# 
+# Dexter Taylor
+# binarymachineshop@gmail.com
+# github: binarymachines
+#-----------------------------------------------------
+
+
+
+import os, sys, re
+import optparse
+import commands
+from os.path import expanduser
+
+
+
+def getSSHAliases():
+    homeDir = expanduser("~")
+    bashrcFile = os.path.join(homeDir, '.bashrc')
+    sshAliasLines = []
+
+    result = {}
+    hostRX = re.compile(r'[a-zA-Z0-9_\-]+[.][a-zA-Z0-9_\-]+[.][a-zA-Z0-9_\-]+')
+    f = open(bashrcFile)
+    for line in f.readlines():
+        if 'alias' in line and 'ssh' in line:
+            tokens = line.split('=')
+            hostAlias = tokens[0][tokens[0].find(' '):].strip()
+            exp = hostRX.search(tokens[1])
+            if exp:
+                hostName = tokens[1][exp.start():exp.end()]
+                result[hostAlias] = hostName
+    f.close()
+    return result
+
+
+def main():
+    parser = optparse.OptionParser(usage='usage: scpget [user@]remotehost:filename [localfile]', version='%prog 1.0')
+    (options, args) = parser.parse_args()
+
+    localFile = None
+    if len(args) < 1:
+        parser.error('wrong number of arguments; scpget exiting.')
+
+    if len(args) == 2:
+        localFile = args[1]
+
+    '''
+    print options
+    print args
+    '''
+
+    sshAliases = getSSHAliases()
+
+    # if we were called with just a hostname, we'll invoke scp
+    # with the logged-in user's name.
+    # if the caller passed 'username@host:file', parse that name out 
+    # and use it
+
+    host = None
+    filename = None
+
+    if '@' in args[0]:
+        tokens = args[0].split('@')
+        username = tokens[0]
+        hostAndFile = tokens[1]
+
+        tokens = hostAndFile.split(':')
+        host = tokens[0]
+        filename = tokens[1]
+    else:
+        tokens = args[0].split(':')
+        host = tokens[0]
+        filename = tokens[1]
+        username = os.getlogin()    
+
+    # This is the cute part: we're smart about aliases
+    if sshAliases.get(host):
+        remoteHost = sshAliases[host]
+    else:
+        remoteHost = host
+
+    if localFile:
+        scpCommandLine = 'scp %s@%s:%s %s' % (username, remoteHost, filename, localFile)
+    else:
+        scpCommandLine = 'scp %s@%s:%s .' % (username, remoteHost, filename)
+
+    print commands.getoutput(scpCommandLine)
+    
+
+
+
+if __name__=='__main__':
+    main()
+
+
+       

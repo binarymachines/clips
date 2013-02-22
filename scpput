@@ -1,0 +1,100 @@
+#!/usr/local/bin/python
+
+#-----------------------------------------------------
+# scpput: command line wrapper utility for scp
+# One of a matched set: scpget and scpput. 
+# They work just like you'd expect scp to work,
+# with the added advantage that they know about 
+# aliases.
+# 
+# Dexter Taylor
+# binarymachineshop@gmail.com
+# github: binarymachines
+#-----------------------------------------------------
+
+
+import os, sys, re
+import optparse
+import commands
+from os.path import expanduser
+
+
+def getSSHAliases():
+    homeDir = expanduser("~")
+    bashrcFile = os.path.join(homeDir, '.bashrc')
+    result = {}
+    hostRX = re.compile(r'[a-zA-Z0-9_\-]+[.][a-zA-Z0-9_\-]+[.][a-zA-Z0-9_\-]+')
+    f = open(bashrcFile)
+    for line in f.readlines():
+        if 'alias' in line and 'ssh' in line:
+            tokens = line.split('=')
+            hostAlias = tokens[0][tokens[0].find(' '):].strip()
+            exp = hostRX.search(tokens[1])
+            if exp:
+                hostName = tokens[1][exp.start():exp.end()]
+                result[hostAlias] = hostName
+    f.close()
+    return result
+
+
+
+def main():
+    parser = optparse.OptionParser(usage='usage: scpput filename [user@]remotehost[:location]', version='%prog 1.0')
+
+    (options, args) = parser.parse_args()
+
+    localFile = None
+    if len(args) < 2:
+        parser.error('wrong number of arguments; scpput exiting.')
+
+    '''
+    print options
+    print args
+    '''
+
+    sshAliases = getSSHAliases()
+    fileToSend = args[0]
+    targetString = args[1]
+
+    # if we were called with just a hostname, we'll invoke scp
+    # with the logged-in user's name.
+    # if the caller passed 'username@host', parse that name out 
+    # and use it
+    
+    username = None
+    locationString = None
+    if '@' in targetString:
+        tokens = targetString.split('@')
+        username = tokens[0]
+        locationString = tokens[1]        
+    else:        
+        username = os.getlogin()    
+        locationString = targetString
+
+    remoteFile = None
+    if ':' in locationString:
+        tokens = locationString.split(':')
+        host = tokens[0]
+        remoteFile = tokens[1]
+    else:
+        host = locationString
+
+    # This is the cute part: we're smart about aliases
+    if sshAliases.get(host):
+        remoteHost = sshAliases[host]
+    else:
+        remoteHost = host
+
+    if remoteFile:
+        scpCommandLine = 'scp %s %s@%s:%s' % (fileToSend, username, remoteHost, remoteFile)
+    else:
+        scpCommandLine = 'scp %s %s@%s:' % (fileToSend, username, remoteHost)
+
+    print commands.getoutput(scpCommandLine)
+
+
+if __name__=='__main__':
+    main()
+
+
+       

@@ -1,0 +1,100 @@
+#!/usr/local/bin/python
+
+#-----------------------------------------------------
+# mktunnel: command line wrapper utility for ssh tunnel setup
+#
+#  mktunnel [-u <username>] localport remotehost:remoteport relayhost
+#
+# 
+# Dexter Taylor
+# binarymachineshop@gmail.com
+# github: binarymachines
+#-----------------------------------------------------
+
+
+
+import os, sys, re
+import optparse
+import commands
+from os.path import expanduser
+
+
+
+def getSSHAliases():
+    homeDir = expanduser("~")
+    bashrcFile = os.path.join(homeDir, '.bashrc')
+    sshAliasLines = []
+
+    result = {}
+    hostRX = re.compile(r'[a-zA-Z0-9_\-]+[.][a-zA-Z0-9_\-]+[.][a-zA-Z0-9_\-]+')
+    f = open(bashrcFile)
+    for line in f.readlines():
+        if 'alias' in line and 'ssh' in line:
+            tokens = line.split('=')
+            hostAlias = tokens[0][tokens[0].find(' '):].strip()
+            exp = hostRX.search(tokens[1])
+            if exp:
+                hostName = tokens[1][exp.start():exp.end()]
+                result[hostAlias] = hostName
+    f.close()
+    return result
+
+
+def main():
+    parser = optparse.OptionParser(usage='usage: mktunnel [-u <username>] <localport> <remotehost>:<remoteport> <relayhost>')
+    parser.add_option('-u', '--user', help='specify a login name')
+
+    (options, args) = parser.parse_args()
+
+    loginID = None
+
+    if len(args) < 3:
+        parser.error('wrong number of arguments; mktunnel exiting.')
+
+    if len(args) == 4:
+        loginID = args[1]
+
+
+    # if we were called with just a hostname, mktunnel
+    # will use the logged-in user's name by default.
+    # if the caller passed the -u  or --user option, use that
+    #
+
+    loginID = options.user
+    if not loginID:
+        loginID = os.getlogin()
+
+
+    remote = args[1]
+    rTokens = remote.split(':')
+    if len(rTokens) != 2:
+        parser.error('badly formatted remote argument (need colon between host and port); mktunnel exiting.')
+
+    localPort = args[0]
+    relayHost = args[2]
+
+    remoteHost = rTokens[0]
+    remotePort = rTokens[1]
+
+
+    sshAliases = getSSHAliases()
+
+    if sshAliases.get(relayHost):
+        relayHost = sshAliases[relayHost]
+
+    if sshAliases.get(remoteHost):
+        remoteHost = sshAliases[remoteHost]
+
+    
+    mktunnelCommandLine = 'ssh -l %s -N -L %s:%s:%s %s' % (loginID, localPort, remoteHost, remotePort, relayHost)
+
+    print commands.getoutput(mktunnelCommandLine)
+    
+
+
+
+if __name__=='__main__':
+    main()
+
+
+       
