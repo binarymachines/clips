@@ -4,7 +4,7 @@ clips
 clips stands for Command LIne Python Scripts: assorted tools to make life easier in the Big Texty.
 
 
-scpget and scpput are wrappers around (you guessed it) scp. They follow scp's semantics as closely as possible, with the
+<b>scpget</b> and <b>scpput</b> are wrappers around (you guessed it) scp. They follow scp's semantics as closely as possible, with the
 additional benefit being that they're smart about aliases. So whereas with scp you would say
 
 scp dtaylor@<host.domain.com>:<path/to/file> [localfile]
@@ -31,7 +31,7 @@ scpget me@a:<path/to/file/> [localfile]
 and it all just works. scpput works the same way of course, just in the opposite direction.
 
 
-mktunnel makes setting up SSH tunnels a bit easier. I often find myself having to jump into a private server through a bastion host.
+<b>mktunnel</b> makes setting up SSH tunnels a bit easier. I often find myself having to jump into a private server through a bastion host.
 mktunnel basically wraps ssh *and* lets me use my aliases.
 
 
