@@ -42,13 +42,13 @@ that you want to hit with a browser from your local machine. You also have a cou
 
 ```bash
 alias gate='ssh gateway-server-123.sol.com'
-alias s='saturn.sol.pvt'
+alias s='ssh saturn.sol.pvt'
 ```
 
 so just issue
 
 ```bash
-mktunnel 9999 saturn:80 gate
+mktunnel 9999 s:80 gate
 ```
 
 Now your tunnel is up and ready to go; from your browser you can issue the URL
