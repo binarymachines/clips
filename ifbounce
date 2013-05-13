@@ -1,0 +1,84 @@
+#!/usr/local/bin/python
+
+#-----------------------------------------------------
+# ifbounce: command line widget to take an interface 
+# down, then up again
+#
+#  ifbounce <interface> [seconds]
+#
+#
+# Dexter Taylor
+# binarymachineshop@gmail.com
+# github: binarymachines
+#-----------------------------------------------------
+
+
+import os, sys, re
+import optparse
+import commands 
+import time
+
+cmdName = 'ifbounce'
+MAX_DOWNTIME = 5
+
+
+
+def main():
+    parser = optparse.OptionParser(usage='usage: %s <interface> [-t <time>] [-pre <pre_bounce_script>] [-post <post_bounce_script>]' % cmdName)
+    parser.add_option('-t', 
+                      '--time', 
+                      help='specify the amount of time in seconds the interface should remain down (max %d)' % MAX_DOWNTIME)
+
+    parser.add_option(
+                      '--pre',
+                      help='specify a script to run before bouncing the interface')
+
+    parser.add_option(
+                      '--post',
+                      help='specify a script to run after bouncing the interface')
+
+    (options, args) = parser.parse_args()
+    optionDict = vars(options)
+
+    if not len(args) or len(args) > 2:
+        parser.error('wrong number of arguments; %s exiting.' % cmdName)
+
+    interfaceName = args[0]
+    timespan = 1  # default time to keep interface down
+
+    if optionDict.get('time'):
+        timespan = int(optionDict.get('time'))
+
+        if timespan > MAX_DOWNTIME:
+            parser.error('specified downtime exceeds the allowed maximum of %d seconds; %s exiting.' % (MAX_DOWNTIME, cmdName))
+    
+    preBounceScript = optionDict.get('pre', None)
+    postBounceScript = optionDict.get('post', None)
+
+    downCommand = 'sudo ifconfig %s down' % interfaceName
+    upCommand = 'sudo ifconfig %s up' % interfaceName
+
+    if preBounceScript:
+        #print commands.getOutput(preBounceScript)
+        print "executing pre-bounce script '%s'..." % preBounceScript
+        print commands.getoutput(preBounceScript)
+
+    print 'bringing down interface %s for %d second(s)...\n' % (interfaceName, timespan)
+
+    print commands.getoutput(downCommand)
+    time.sleep(timespan)
+    print commands.getoutput(upCommand)
+
+    print 'interface %s bounced.' % interfaceName
+
+    if postBounceScript:
+        print "executing post-bounce script '%s'..." % postBounceScript
+        print commands.getoutput(postBounceScript)
+
+
+if __name__=='__main__':
+    main()
+
+
+
+
