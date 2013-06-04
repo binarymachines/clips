@@ -59,6 +59,16 @@ http://localhost:9999
 
 to hit the private host.
 
+<b>spinup</b> is a utility for booting and provisioning ("spinning up") EC2 instances, using Chef as a configuration manager.
+Right now it's experimental software, but it does work correctly provided you have the Gremlin library installed (Gremlin is
+a curses-based pythonic framework for running menu-based command line programs); issue 'pip install gremlin' to pull it down from PyPi.
+
+Then make sure the file is on your PATH and type spinup at the command line to run it. Spinup will ask a series of questions
+regarding your server, then launch an EC2 instance using the Chef knife command. To launch spinup in debug mode (it will
+generate but not execute the knife command string), run spinup with the --debug option; to append the generated command string
+to an existing file such as a script under construction, run it with the --debug and --append options.
+
+
 
 
 
