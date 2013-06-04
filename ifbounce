@@ -19,7 +19,7 @@ import commands
 import time
 
 cmdName = 'ifbounce'
-MAX_DOWNTIME = 5
+MAX_DOWNTIME = 60
 
 
 

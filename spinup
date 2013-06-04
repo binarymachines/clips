@@ -1,0 +1,205 @@
+#!/usr/local/bin/python
+
+
+#-----------------------------------------------------
+# spinup: command line tool for creating managed
+# EC2 nodes using Chef and the AWS kit
+#
+#
+#
+# Dexter Taylor
+# binarymachineshop@gmail.com
+# github: binarymachines
+#-----------------------------------------------------
+
+
+import os, sys, re
+import optparse
+import commands
+import time
+import subprocess
+import fcntl
+from threading import Thread
+import gremlin
+
+
+class SpinupConfig(object):
+
+    def __init__(self):
+        self.role = None
+        self.ec2InstanceType = None
+        self.ami = None
+        self.errorState = None
+        
+    
+    def acquireAMI(self, screen, sectionHeader = ''):
+        amis = ['ami-79c0ae10', 'ami-21e47148', 'ami-d0f89fb9']
+        amiMenu = gremlin.Menu(amis)
+        prompt = gremlin.MenuPrompt(amiMenu, 'Select the Amazon Machine Instance (AMI) to build this node from')
+
+        screen.clear()
+        gremlin.Notice(sectionHeader).show(screen)
+        selection = prompt.show(screen)
+        if prompt.escaped:
+            gremlin.Notice('WARNING: cannot spin up an EC2 node without specifying an AMI id.').show(screen)
+
+        return selection
+
+
+
+    def acquireEC2InstanceType(self, screen, sectionHeader = ''):
+        ec2InstanceTypes = ['t1.micro', 'm1.small', 'm1.medium']
+        ec2InstanceMenu = gremlin.Menu(ec2InstanceTypes)
+        prompt = gremlin.MenuPrompt(ec2InstanceMenu, 'Select the EC2 instance type for the new node')
+
+        screen.clear()
+        gremlin.Notice(sectionHeader).show(screen)
+        selection = prompt.show(screen)
+        if prompt.escaped:
+            gremlin.Notice('WARNING: cannot spin up a node without an EC2 instance type.').show(screen)
+
+        return selection
+
+
+
+    def acquireRole(self, screen, sectionHeader = ''):
+        showRolesCommand = 'knife role list'
+        rawRoles = commands.getoutput(showRolesCommand)
+        roles = rawRoles.split('\n')
+        roleMenu = gremlin.Menu(roles)
+        prompt = gremlin.MenuPrompt(roleMenu, 'Select the role for this new node.')
+        
+        screen.clear()
+        gremlin.Notice(sectionHeader).show(screen)
+        selection = prompt.show(screen)
+        if prompt.escaped:
+            gremlin.Notice('WARNING: cannot spin up a node without a specified role..').show(screen)
+            selection = 'null_role'
+        return selection
+
+
+
+    def acquireNodeName(self, screen, sectionHeader = ''):
+        nodeNamePrompt = gremlin.TextPrompt('Select a name for this node (both AWS and Chef will reference this name)')
+        screen.clear()
+        gremlin.Notice(sectionHeader).show(screen)
+        nodeName = nodeNamePrompt.show(screen)
+        return nodeName
+        
+
+
+    def generateCommandLine(self):        
+        knifeCommandString = 'knife ec2 server create -r "role[%s]" -I %s -f %s -G default -x ubuntu --node-name %s' % \
+            (self.role, self.ami, self.ec2InstanceType, self.nodeName)
+
+        return knifeCommandString
+
+
+
+    def isValid(self):
+        try:
+            assert(self.role)
+            assert(self.ami)
+            assert(self.ec2InstanceType)
+            return True        
+        except AssertionError, err:
+            self.errorState = err
+            return False
+            
+                
+
+
+    def run(self, screen, **kwargs):
+        gremlin.Notice(['', 'Welcome to the Spinup node automation manager.',
+                    'Spinup streamlines the process of creating machine instances from config management.',
+                    '']).show(screen)
+        
+        gremlin.Notice(['', 'Hit any key to continue. (There will be a brief pause while we access configuration data.)']).show(screen)
+        screen.getch()
+        
+        self.role = self.acquireRole(screen, '::: (spinup) select machine role :::')
+        self.ec2InstanceType = self.acquireEC2InstanceType(screen, '::: (spinup) select instance type :::')
+        self.ami = self.acquireAMI(screen, '::: (spinup) select AMI id :::')
+        self.nodeName = self.acquireNodeName(screen, '::: (spinup) choose a node name :::')
+        
+
+
+def log_worker(stdout):
+    ''' needs to be in a thread so we can read the stdout w/o blocking '''
+    print 'D'
+    while True:
+        output = non_block_read(stdout).strip()
+        if output:
+            print output
+
+
+
+
+
+def non_block_read(output):
+    ''' even in a thread, a normal read with block until the buffer is full '''
+    fd = output.fileno()
+    fl = fcntl.fcntl(fd, fcntl.F_GETFL)
+    fcntl.fcntl(fd, fcntl.F_SETFL, fl | os.O_NONBLOCK)
+    try:
+        return output.read()
+    except:
+        return ''
+        
+
+def main():
+    cmdName = 'spinup'
+
+    parser = optparse.OptionParser(usage = 'usage: %s [-d] [-a <filename>]' % cmdName)
+
+    parser.add_option('-a', '--append', help='Append generated knife command to a file', dest='appendFile')
+    parser.add_option('-d', '--debug', dest='debug', default=False, action='store_true')
+
+    (options, args) = parser.parse_args()
+    optionDict = vars(options)
+
+    targetFilename = options.appendFile
+    debugMode = options.debug
+    
+    display = gremlin.CursesDisplay(SpinupConfig)
+    display.open()
+    spinupConfig = display.gremlinent
+
+    if spinupConfig.isValid():
+        
+        knifeCommandLine = spinupConfig.generateCommandLine()
+        if targetFilename:
+            try:
+                f = open(targetFilename, 'a')
+                print('appending generated knife command to target file %s...' % targetFilename)
+                f.write('\n%s' % knifeCommandLine)
+                print('done.')
+            except IOException, x:
+                print('Error appending knife command to file %s: %s.' % (targetFilename, x.message))
+            finally:
+                f.close()
+        
+        if debugMode:
+            print('\n\nConfiguration complete. Outputting knife command string in debug mode (will not execute):\n\n%s\n' % knifeCommandLine)
+        else:            
+            print('\n\nConfiguration complete. Spinning up node...')
+            knifeProcess = subprocess.Popen(knifeCommandLine.split(' '), stdin=sys.stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, bufsize=1)
+
+            print('called Popen().')
+            thread = Thread(target=log_worker, args=[knifeProcess.stdout])
+            thread.daemon = True
+            thread.start()
+            knifeProcess.wait()
+            thread.join(timeout=1)
+            print('done.')
+    else:
+        print('Invalid configuration -- you probably omitted one or more required data elements.')
+        print(spinupConfig.errorStatus)
+        print('spinup exiting with errors.')
+
+    
+
+
+
+if __name__ == '__main__':
+    main()
