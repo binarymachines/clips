@@ -1,0 +1,43 @@
+#!/usr/local/bin/python
+
+#-----------------------------------------------------
+# ssin8: kill a process by name
+#
+# ssin8 (that's right, assassinate) takes a single parameter:
+# the name of the process to be killed. (As an added convenience,
+# it works with the process ID as well). Issue
+#
+# ssin8 <process-name-or-id>
+#	
+# and the offending program gets whacked. 
+# (Leave the gun. Take the cannoli.)
+# 
+# Dexter Taylor
+# binarymachineshop@gmail.com
+# github: binarymachines
+#-----------------------------------------------------
+
+
+import commands
+import optparse
+
+
+cmdName = 'ssin8'
+
+
+def main():
+    parser = optparse.OptionParser(usage='usage: %s <process-name-or-id>' % cmdName)
+    (options, args) = parser.parse_args()
+
+    if len(args) < 1:
+       parser.error('wrong number of arguments; %s exiting.' % cmdName)
+
+    processID = args[0]
+
+    killCommand = "kill `ps -ax |grep '%s' | grep -v grep | awk '{print $1}'`" % processID
+    #print killCommand
+    result = commands.getoutput(killCommand)
+
+
+if __name__ == '__main__':
+    main()
